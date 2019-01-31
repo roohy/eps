@@ -11,7 +11,7 @@ setuptools.setup(
     description="Extreme Pseudo Sampling Package",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pypa/sampleproject",
+    url="",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
