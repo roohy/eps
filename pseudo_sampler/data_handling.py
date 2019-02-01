@@ -27,3 +27,11 @@ class BatchMaker(object):
                 self.shuffle()
                 return result
         return None
+
+
+def normalizer(data):
+    min_con = np.min(data,axis=0)
+    max_con = np.max(data,axis=0)
+    data = data-min_con
+    data = data/(max_con-min_con +(1e-10))
+    return data

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import sys
 from sklearn.decomposition import PCA
 from regressor import LogisticRegressor
+from data_handling import BatchMaker
 
 
 
@@ -93,124 +94,20 @@ class VariantionalAutoencoder(object):
 
 
 
-
-def load_and_normalize(expressions_address,diag_address):
-    expressions= pd.read_csv(expressions_address,delimiter=',')
-    diags = pd.read_csv(diag_address,delimiter=',')
-    temp_con = expressions.values[:,1:]
-    temp_con = temp_con.astype(np.float32)
-    con  = temp_con.T
-    np_diags = np.zeros((con.shape[0],1))
-    np_diags[:,0] = [1  if item == 'cancer' else 0 for item in diags.values[:,1]]
-    
-    min_con = np.min(con,axis=0)
-    max_con = np.max(con,axis=0)
-    con = con-min_con
-    con = con/(max_con-min_con +(1e-10))
-    cancer_ones = np_diags[:,0]==1
-    cancer_count = np.sum(cancer_ones)
-    print("Cancer Count",cancer_count)
-    testin = np.random.choice(cancer_count,20)
-    trainin = np.array([x for x in range(con.shape[0]) if x not in testin])
-    return con,np_diags,cancer_ones,cancer_count,testin,trainin
-
-
-
-def do_regression(vat,np_diags,trainin,epochs):
+def do_regression(data,labels,epochs,batch_size=300):
     tf.reset_default_graph()
-    model = LogisticRegressor(learning_rate=1e-4,input_dim=vat.shape[1])
-    print('TRAINIG LATENT REGRESSOR:')
-    for epoch in range(epochs):
-        for iter in range(len(trainin) // 20):
-            choices = np.random.choice(len(trainin),20)
-            loss = model.run_single_step(vat[trainin[choices],:],np_diags[trainin[choices],:])
-            #loss = model.run_single_step(X[Y[:,1]==1,:],Y[Y[:,1]==1,:])
-            
+    model = LogisticRegressor(learning_rate=1e-4,input_dim=data.shape[1])
+    print('TRAINIG LATENT SPACE REGRESSOR:')
+    data_handler = BatchMaker()
+    data_handler.load_data(data.shape[0])
+    loss_list = []
+    while data_handler.batch_number < epochs:
+        index_list = data_handler.get_batch(batch_size)
+        loss = model.run_single_step(data[index_list,:],labels[index_list])
+        loss_list.append(loss) 
         if epoch % 5 == 0:
             print('[Epoch {}] Loss: {}'.format(epoch, loss))
-    labels = model.classifier(vat)
-    latent_reg_acc = np.sum(labels[:] == np_diags[:,0])/np_diags.shape[0]
+    predictions = model.classifier(data)
+    latent_reg_acc = np.sum(predictions[:] == labels[:,0])/labels.shape[0]
     print('Latent Regressor Accuracy is :',latent_reg_acc)
     return model
-
-if __name__ == '__main__':
-    expressions_address = sys.argv[1]
-    diag_address = sys.argv[2]
-    output_address = sys.argv[3]
-    model_address = sys.argv[4]
-    print('*****************************************************')
-    print(expressions_address)
-    print('*****************************************************')
-    con,np_diags,cancer_ones,cancer_count,testin,trainin = load_and_normalize(expressions_address,diag_address)
-
-
-    #VAE FIRST LOAD
-    vindim = con.shape[1]
-    print('VARIATIONAL INITIATION....')
-    model = create_and_train_vae(con)
-    saver = tf.train.Saver()
-    print('SAVING VAE...')
-
-    saver.save(model.sess,model_address+'_vae.ckpt')
-    vat = model.transformer(con)
-
-    #First Regression
-    model = do_regression(vat,np_diags,trainin,650)
-    print('SAVING REGRESSOR')
-    saver = tf.train.Saver()
-    saver.save(model.sess,model_address+'latent_reg.ckpt')
-    w = model.sess.run(model.W)
-    b = model.sess.run(model.b)
-    
-    dists = vat.dot(w) + b
-
-    max_point = vat[np.argmax(dists),:]
-    min_point = vat[np.argmin(dists),:]
-
-    cov = np.eye(500)
-    cov = cov*0.2
-
-    max_rand = np.random.multivariate_normal(max_point,cov,200)
-
-    min_rand = np.random.multivariate_normal(min_point,cov,200)
-    print('RESTORING VAE...')
-    tf.reset_default_graph()
-    model = VariantionalAutoencoder(learning_rate=1e-4,batch_size=100, n_z=500)
-    saver = tf.train.Saver()
-    saver.restore(model.sess,model_address+'_vae.ckpt')
-    max_generated = model.generator(max_rand)
-    min_generated = model.generator(min_rand)
-    '''
-    new_data = np.concatenate((con,min_generated,max_generated),axis=0)
-    new_mean = np.mean(new_data,axis=0)
-    new_var = np.var(new_data,axis=0)
-    nn_data = (new_data-new_mean)/(new_var)
-    '''
-
-    ex_data = np.concatenate((min_generated,max_generated),axis=0)
-    fullbool = np.zeros((400,1))
-    fullbool[200:400,0]+=1
-    tf.reset_default_graph()
-    print("INITIATING EXAGGERATED REGRESSOR...")
-    model = LogisticRegressor(learning_rate=1e-4,input_dim=ex_data.shape[1])
-    print("training main regressor:")
-    for epoch in range(650):
-        for iter in range(1000 // 20):
-            choices = np.random.choice(400,20)
-            loss = model.run_single_step(ex_data[choices,:],fullbool[choices,:])
-            
-            
-        if epoch % 5 == 0:
-            print('[Epoch {}] Loss: {}'.format(epoch, loss))
-    
-    labels = model.classifier(con)
-    orig_reg_acc = np.sum(labels)/200
-    print("Original Regressor Accuracy is ",orig_reg_acc)
-    orig_w = model.sess.run(model.W)
-    
-    sortedargs = np.argsort(-np.fabs(orig_w[:,0]))
-    temp_names = expressions.values[:,0]
-    with open(output_address,'w') as outputfile:
-        for item in sortedargs :
-            outputfile.write(temp_names[item]+'\n')
-    print("ALL DONE!!! GO00o0o0d LUCKKKK!!!")
