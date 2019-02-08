@@ -1,5 +1,5 @@
-# Example Package
+# Extreme Pseudo-Sampler
 
-This is a simple example package. You can use
+EPS is a feature selection method. More on here in a few days.
+
 [Github-flavored Markdown](https://guides.github.com/features/mastering-markdown/)
-to write your content.

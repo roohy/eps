@@ -4,8 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="pseudo-sampler-roohy",
-    version="0.1.1",
+    name="pseudo-sampler",
+    version="0.2.1",
     author="Ruhollah Shemirani",
     author_email="shemirani.r@gmail.com",
     description="Extreme Pseudo Sampling Package",
