@@ -2,11 +2,8 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.contrib.slim import fully_connected as fc
-import matplotlib.pyplot as plt 
-import sys
-from sklearn.decomposition import PCA
-from regressor import LogisticRegressor
-from data_handling import BatchMaker
+from .regressor import LogisticRegressor
+from .data_handling import BatchMaker
 
 
 
@@ -17,12 +14,13 @@ class VariantionalAutoencoder(object):
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.vindim = vindim
-        self.build()
         self.layers = layers
         self.n_z = layers[-1]
+        self.activation_func = activation
+        self.build()
         self.sess = tf.InteractiveSession()
         self.sess.run(tf.global_variables_initializer())
-        self.activation_func = activation
+        
 
     # Build the netowrk and the loss functions
     def build(self):
@@ -105,8 +103,8 @@ def do_regression(data,labels,epochs,batch_size=300):
         index_list = data_handler.get_batch(batch_size)
         loss = model.run_single_step(data[index_list,:],labels[index_list])
         loss_list.append(loss) 
-        if epoch % 5 == 0:
-            print('[Epoch {}] Loss: {}'.format(epoch, loss))
+        if data_handler.batch_number % 5 == 0:
+            print('[Epoch {}] Loss: {}'.format(data_handler.batch_number, loss))
     predictions = model.classifier(data)
     latent_reg_acc = np.sum(predictions[:] == labels[:,0])/labels.shape[0]
     print('Latent Regressor Accuracy is :',latent_reg_acc)

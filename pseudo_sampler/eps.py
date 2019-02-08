@@ -1,7 +1,7 @@
-from vae_regressor import  VariantionalAutoencoder,do_regression
+from .vae_regressor import  VariantionalAutoencoder,do_regression
 import tensorflow as tf
 import numpy as np
-from data_handling import BatchMaker,normalizer
+from .data_handling import BatchMaker,normalizer
 import gc
 
 
@@ -12,6 +12,8 @@ class EPS(object):
         else:
             self.data = data
         self.labels = labels
+        if len(self.labels.shape) == 1:
+            self.labels = self.labels.reshape(self.labels.shape[0],1)
         self.layers = layers
         self.learning_rate = learning_rate
         self.batch_size = batch_size
@@ -63,8 +65,8 @@ class EPS(object):
 
         max_point = transformed_data[np.argmax(dists),:]
         min_point = transformed_data[np.argmin(dists),:]
-
-        cov = np.eye(500)
+        
+        cov = np.eye(transformed_data.shape[1])
         cov = cov*0.2
 
         max_rand = np.random.multivariate_normal(max_point,cov,200)
