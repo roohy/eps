@@ -9,23 +9,33 @@ This library uses TensorFlow in 4 steps.
 
 ## Installation
 Using setup_tools, install the package using the following command:
+
 `python3 -m pip install pseudo-sampler`
+
 Or you can download the code and import it to your project manually. Or use virtual environments.
 ## Usage
 Import the main class called EPS from the package:
+
 `from pseudo-sampler.eps import EPS`
+
 You can then create an EPS instant using the following snippet:
+
 `eps = EPS(data, labels, layers, learning_rate = 1e-4, batch_size = 100, VAE_activation=tf.nn.relu, normalize=True) `
+
 Data should be a float numpy array with N*D dimensions. Where N is the total number of samples and D is the number of features in the feature space. 
 Labels should be a numpy array with length N containing 1s and 0s for cases and controls. 
 Layers is an integer python list containing the number of perceptrons in every layer of your Deep Variational Auto-Encoder; only in the encoder side (decoder side will be mirrored) . For example if you want to have a Deep Network with the following structure:
 Input -> 250 -> 120 -> 60 -> Latent Space with 30 dimensions -> 60 -> 120 -> 250 -> Output 
 You can represent it by passing the following as your layers argument. 
+
 `layers = [250,120,60,30]`
+
 Learning rate, batch size and activation function are used to create the VAE. 
 The input data by default will be normalized to be between 0 and 1. In case they already are in that interval, you can set the normalization flag off. 
 After creating an EPS instance, you can run your EPS experiment with the following command:
+
 `feature_ranks = eps.run(vae_epochs=50,regression_epochs=500,vae_address=‘./vae_mode.ckpt’)`
+
 You can set the number of epochs for VAE and Linear Regression models separately. Trained VAE models are saved mid-operation as back-up. You can set the backup address using vae_address argument.
 EPS.run function returns a list of indices of features sorted based on their importance in classification of EPS.
 
