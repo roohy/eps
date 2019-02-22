@@ -12,14 +12,14 @@ This library uses [TensorFlow](https://www.tensorflow.org/) in 4 steps:
 ## Installation
 Using setup_tools, install the package using the following command:
 
-`python3 -m pip install pseudo-sampler`
+`python3 -m pip install pseudo_sampler`
 
 Or you can download the code and import it to your project manually. Or use virtual environments.
 
 ## Usage
 Import the main class called EPS from the package:
 
-`from pseudo-sampler.eps import EPS`
+`from pseudo_sampler.eps import EPS`
 
 You can then create an EPS instant using the following snippet:
 
