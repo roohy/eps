@@ -6,6 +6,10 @@ import gc
 
 
 class EPS(object):
+    def __init__(self):
+        self.VAE_model = None
+        self.layers = None
+    
     def __init__(self,data, labels,layers,learning_rate = 1e-4, batch_size = 100,VAE_activation=tf.nn.relu,normalize=True):
         if normalize:
             self.data = normalizer(data)
@@ -21,7 +25,31 @@ class EPS(object):
         self.batchMaker = BatchMaker()
         self.batchMaker.load_data(self.data.shape[0])
 
+    def create_VAE(self):
+        if self.layers in None:
+            print("Layers no initiated!")
+        tf.reset_default_graph()
+        self.VAE_model = VariantionalAutoencoder(self.layers[0],self.layers,learning_rate=self.learning_rate,
+            batch_size=self.batch_size,activation=self.VAE_activation)
+        return self.VAE_model
     
+    def save_VAE(self,address):
+        if self.VAE_model is None:
+            print("There is no model to save!")
+            raise Exception("No VAE Model")
+        saver = tf.train.Saver()
+        saver.save(self.VAE_model.sess,self.address)
+
+    def load_VAE(self,address):
+        if self.VAE_model is None:
+            print("Please first create the VAE model!")
+            raise Exception("No VAE Model!")
+        saver = tf.train.Saver()
+        saver.restore(self.VAE_model.sess,address)
+
+
+
+
     def create_and_train_vae(self,epochs=50):
     
         tf.reset_default_graph()
@@ -37,6 +65,9 @@ class EPS(object):
         self.VAE_model = model
         
         return model
+
+    def train_VAE():
+        pass
 
     def save_model(self,address):
         if self.VAE_model is None:
