@@ -1,16 +1,66 @@
-from .vae_regressor import  VariantionalAutoencoder,do_regression
+from .vae_regressor import VariantionalAutoencoder,do_regression 
 import tensorflow as tf
 import numpy as np
 from .data_handling import BatchMaker,normalizer
 import gc
+VAE_STATE_EMPTY = 0
+VAE_STATE_FITTED = 1
+VAE_STATE_SAVED = 2
+REGRESSOR_STATE_EMPTY = 0
+REGRESSOR_STATE_TRAINED = 1
+
 
 
 class EPS(object):
     def __init__(self):
-        self.VAE_model = None
         self.layers = None
+        self.vae_state = VAE_STATE_EMPTY 
+        self.regressor_state = REGRESSOR_STATE_EMPTY
+        self.ex_data = None
+        self.fullbool = None
     
-    def __init__(self,data, labels,layers,learning_rate = 1e-4, batch_size = 100,VAE_activation=tf.nn.relu,normalize=True):
+    def set_layers(self,layers):
+        self.layers = layers
+
+    def create_VAE(self,layers,activation_func):
+        self.set_layers(layers)
+        self.VAE_activation = activation_func
+        tf.reset_default_graph()
+        self.VAE_model = VariantionalAutoencoder(self.layers[0],self.layers,learning_rate=self.learning_rate,
+            batch_size=self.batch_size,activation=self.VAE_activation)
+        return self.VAE_model
+    
+    def save_VAE(self,address):
+        if self.VAE_model is None:
+            print("There is no model to save!")
+            raise Exception("No VAE Model")
+        saver = tf.train.Saver()
+        saver.save(self.VAE_model.sess,address)
+
+    def load_VAE(self,address):
+        if self.VAE_model is None:
+            print("Please first create the VAE model!")
+            raise Exception("No VAE Model!")
+        saver = tf.train.Saver()
+        saver.restore(self.VAE_model.sess,address)
+    
+    def train_VAE(self,epochs,data):
+        if self.VAE_model is None:
+            raise Exception("No VAE Model!")
+        loss_list = []
+        batchMaker = BatchMaker()
+        batchMaker.load_data(data)
+        print("TRAINING VARIATIONAL:")
+        while(batchMaker.batch_number < epochs):
+            data_batch = batchMaker.get_batch(self.batch_size)
+            
+            loss = self.VAE_model.run_single_step(data_batch)
+            loss_list.append(loss)
+        self.vae_state = VAE_STATE_FITTED
+    def transform_data(self,data):
+        return self.VAE_model.transformer(data)
+
+    '''def __init__(self,data, labels,layers,learning_rate = 1e-4, batch_size = 100,VAE_activation=tf.nn.relu,normalize=True):
         if normalize:
             self.data = normalizer(data)
         else:
@@ -23,76 +73,48 @@ class EPS(object):
         self.batch_size = batch_size
         self.VAE_activation = VAE_activation
         self.batchMaker = BatchMaker()
-        self.batchMaker.load_data(self.data.shape[0])
+        self.batchMaker.load_data(self.data.shape[0])'''
 
-    def create_VAE(self):
-        if self.layers in None:
-            print("Layers no initiated!")
-        tf.reset_default_graph()
-        self.VAE_model = VariantionalAutoencoder(self.layers[0],self.layers,learning_rate=self.learning_rate,
-            batch_size=self.batch_size,activation=self.VAE_activation)
+    def create_and_train_vae(self,data,activation_func,epochs=50):
+        self.create_VAE(self.layers,activation_func)
+        self.train_VAE(epochs,data)
         return self.VAE_model
+
+
     
-    def save_VAE(self,address):
-        if self.VAE_model is None:
-            print("There is no model to save!")
-            raise Exception("No VAE Model")
-        saver = tf.train.Saver()
-        saver.save(self.VAE_model.sess,self.address)
-
-    def load_VAE(self,address):
-        if self.VAE_model is None:
-            print("Please first create the VAE model!")
-            raise Exception("No VAE Model!")
-        saver = tf.train.Saver()
-        saver.restore(self.VAE_model.sess,address)
-
-
-
-
-    def create_and_train_vae(self,epochs=50):
-    
-        tf.reset_default_graph()
-        vindim = self.data.shape[1]
-        loss_list = []
-        model = VariantionalAutoencoder(self.data.shape[1],self.layers,learning_rate=self.learning_rate,
-            batch_size=self.batch_size,activation=self.VAE_activation)
-        print("TRAINING VARIATIONAL:")
-        while(self.batchMaker.batch_number < epochs):
-            index_list = self.batchMaker.get_batch(self.batch_size)
-            loss = model.run_single_step(self.data[index_list,:])
-            loss_list.append(loss)
-        self.VAE_model = model
+    def train(self,data,labels,vae_epochs=50,regression_epochs=500,
+        learning_rate=1e-4, batch_size = 100,VAE_activation=tf.nn.relu,
+        normalize=True,vae_address='./vae_mode.ckpt',layers = None):
+        self.data = data
+        self.labels = labels
+        if len(self.labels.shape) == 1:
+            self.labels = self.labels.reshape(self.labels.shape[0],1)
+        if self.layers is None:
+            if layers is None:
+                raise Exception('No layers were provided anywere.')
+            else:
+                self.set_layers([data.shape[1]]+layers)
         
-        return model
-
-    def train_VAE():
-        pass
-
-    def save_model(self,address):
-        if self.VAE_model is None:
-            print("There is no model")
-            raise Exception("There is no Model")
-        self.address = address
-        saver = tf.train.Saver()
-        saver.save(self.VAE_model.sess,self.address)
-
-    
-    def run(self,vae_epochs=50,regression_epochs=500,vae_address='./vae_mode.ckpt'):
-        self.create_and_train_vae(vae_epochs)
-        self.save_model(vae_address)
-        transformed_data = self.VAE_model.transformer(self.data)
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.vae_address = vae_address
+        self.regression_epochs = regression_epochs
+        self.create_and_train_vae(data,VAE_activation,vae_epochs)
+        self.save_VAE(vae_address)
+        self.vae_state = VAE_STATE_SAVED
+        self.transformed_data = self.transform_data(self.data)
         self.VAE_model.sess.close()
         gc.collect()
+        model = do_regression(self.transformed_data,self.labels,regression_epochs)
+        self.regressor_state = REGRESSOR_STATE_TRAINED
 
-        model = do_regression(transformed_data,self.labels,regression_epochs)
         # print('SAVING REGRESSOR')
         # saver = tf.train.Saver()
         # saver.save(model.sess,model_address+'latent_reg.ckpt')
-        w = model.sess.run(model.W)
-        b = model.sess.run(model.b)
+        self.w = model.sess.run(model.W)
+        self.b = model.sess.run(model.b)
         
-        dists = transformed_data.dot(w) + b
+        '''dists = transformed_data.dot(w) + b
 
         max_point = transformed_data[np.argmax(dists),:]
         min_point = transformed_data[np.argmin(dists),:]
@@ -127,7 +149,55 @@ class EPS(object):
     
         sortedargs = np.argsort(-np.fabs(orig_w[:,0]))
         
+        return sortedargs'''
+        return self
+    
+    def generate(self,count):
+        if not self.vae_state == VAE_STATE_SAVED:
+            raise Exception('No VAE trained. Call the "train" function first.')
+        if not self.regressor_state == REGRESSOR_STATE_TRAINED:
+            raise Exception('No Regressors available. Call the "train" function first.')
+        dists = self.transformed_data.dot(self.w) + self.b
+
+        max_point = self.transformed_data[np.argmax(dists),:]
+        min_point = self.transformed_data[np.argmin(dists),:]
+        
+        cov = np.eye(self.transformed_data.shape[1])
+        cov = cov*0.2
+
+        max_rand = np.random.multivariate_normal(max_point,cov,count)
+
+        min_rand = np.random.multivariate_normal(min_point,cov,count)
+
+        tf.reset_default_graph()
+        model = VariantionalAutoencoder(self.data.shape[1],self.layers,learning_rate=self.learning_rate,
+            batch_size=self.batch_size,activation=self.VAE_activation)
+        saver = tf.train.Saver()
+        saver.restore(model.sess,self.vae_address)  
+        max_generated = model.generator(max_rand)
+        min_generated = model.generator(min_rand)
+        model.sess.close()
+        gc.collect()
+        ex_data = np.concatenate((min_generated,max_generated),axis=0)
+        fullbool = np.zeros((count*2,1))
+        fullbool[count:count*2,0]+=1
+        
+        tf.reset_default_graph()
+        self.ex_data = ex_data
+        self.fullbool = fullbool
+        return ex_data,fullbool
+    
+    def rank(self):
+        if self.ex_data is None:
+            raise Exception('No generated data available. Try training a model and generating data first.')
+        #print("INITIATING EXAGGERATED REGRESSOR...")
+        model = do_regression(self.ex_data,self.fullbool,self.regression_epochs)
+        
+        
+        orig_w = model.sess.run(model.W)
+    
+        sortedargs = np.argsort(-np.fabs(orig_w[:,0]))
+        
         return sortedargs
         
-
             
