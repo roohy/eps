@@ -4,11 +4,13 @@ import numpy as np
 from .data_handling import BatchMaker,normalizer
 import gc
 VAE_STATE_EMPTY = 0
+VAE_STATE_EMPTY_MODEL = 3
 VAE_STATE_FITTED = 1
 VAE_STATE_SAVED = 2
 REGRESSOR_STATE_EMPTY = 0
 REGRESSOR_STATE_TRAINED = 1
-
+MODEL_LOADED  = True
+MODEL_NOT_LOADED = False
 
 
 class EPS(object):
@@ -18,9 +20,11 @@ class EPS(object):
         self.regressor_state = REGRESSOR_STATE_EMPTY
         self.ex_data = None
         self.fullbool = None
+        self.model_state = MODEL_LOADED
     
-    def set_layers(self,layers):
+    def set_layers(self,layers,activation_function=tf.nn.relu):
         self.layers = layers
+        self.VAE_activation = activation_function
 
     def create_VAE(self,layers,activation_func):
         self.set_layers(layers)
@@ -28,6 +32,8 @@ class EPS(object):
         tf.reset_default_graph()
         self.VAE_model = VariantionalAutoencoder(self.layers[0],self.layers,learning_rate=self.learning_rate,
             batch_size=self.batch_size,activation=self.VAE_activation)
+        self.model_state = MODEL_LOADED
+        self.vae_state = VAE_STATE_EMPTY_MODEL
         return self.VAE_model
     
     def save_VAE(self,address):
@@ -38,11 +44,16 @@ class EPS(object):
         saver.save(self.VAE_model.sess,address)
 
     def load_VAE(self,address):
-        if self.VAE_model is None:
-            print("Please first create the VAE model!")
-            raise Exception("No VAE Model!")
+        if self.model_state and self.vae_state != VAE_STATE_EMPTY_MODEL:
+            tf.reset_default_graph()
+        if self.layers is None:
+            raise Exception('Please set a layer architecture and activation function first')
+        if self.vae_state != VAE_STATE_EMPTY_MODEL:
+            self.VAE_model = VariantionalAutoencoder(self.layers[0],self.layers,learning_rate=self.learning_rate,
+                batch_size=self.batch_size,activation=self.VAE_activation)
         saver = tf.train.Saver()
         saver.restore(self.VAE_model.sess,address)
+        self.vae_state = VAE_STATE_FITTED
     
     def train_VAE(self,epochs,data):
         if self.VAE_model is None:
@@ -82,10 +93,14 @@ class EPS(object):
 
 
     
-    def train(self,data,labels,vae_epochs=50,regression_epochs=500,
+    def train(self,data,labels,vae_epochs=50,
         learning_rate=1e-4, batch_size = 100,VAE_activation=tf.nn.relu,
         normalize=True,vae_address='./vae_mode.ckpt',layers = None):
-        self.data = data
+        if normalize:
+            self.data = normalizer(data)
+        else:
+            self.data = data
+        
         self.labels = labels
         if len(self.labels.shape) == 1:
             self.labels = self.labels.reshape(self.labels.shape[0],1)
@@ -98,14 +113,30 @@ class EPS(object):
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.vae_address = vae_address
-        self.regression_epochs = regression_epochs
+        
         self.create_and_train_vae(data,VAE_activation,vae_epochs)
         self.save_VAE(vae_address)
         self.vae_state = VAE_STATE_SAVED
         self.transformed_data = self.transform_data(self.data)
         self.VAE_model.sess.close()
         gc.collect()
-        model = do_regression(self.transformed_data,self.labels,regression_epochs)
+        
+        return self
+    
+    
+    def generate(self,count,regression_epochs=500,regression_index=None):
+        if not self.vae_state == VAE_STATE_SAVED:
+            raise Exception('No VAE trained. Call the "train" function first.')
+        self.regression_epochs = regression_epochs
+        # if not self.regressor_state == REGRESSOR_STATE_TRAINED:
+        #     raise Exception('No Regressors available. Call the "train" function first.')
+        if regression_index is not None:
+            self.transformed_data = self.transform_data(self.data[regression_index])
+        else:
+            self.transformed_data = self.transform_data(self.data)
+        
+        self.temp_labels = self.labels if regression_index is None else self.labels[regression_index]
+        model = do_regression(self.transformed_data,self.temp_labels,regression_epochs)
         self.regressor_state = REGRESSOR_STATE_TRAINED
 
         # print('SAVING REGRESSOR')
@@ -113,50 +144,6 @@ class EPS(object):
         # saver.save(model.sess,model_address+'latent_reg.ckpt')
         self.w = model.sess.run(model.W)
         self.b = model.sess.run(model.b)
-        
-        '''dists = transformed_data.dot(w) + b
-
-        max_point = transformed_data[np.argmax(dists),:]
-        min_point = transformed_data[np.argmin(dists),:]
-        
-        cov = np.eye(transformed_data.shape[1])
-        cov = cov*0.2
-
-        max_rand = np.random.multivariate_normal(max_point,cov,200)
-
-        min_rand = np.random.multivariate_normal(min_point,cov,200)
-            
-        tf.reset_default_graph()
-        model = VariantionalAutoencoder(self.data.shape[1],self.layers,learning_rate=self.learning_rate,
-            batch_size=self.batch_size,activation=self.VAE_activation)
-        saver = tf.train.Saver()
-        saver.restore(model.sess,vae_address)
-        max_generated = model.generator(max_rand)
-        min_generated = model.generator(min_rand)
-        model.sess.close()
-        gc.collect()
-        ex_data = np.concatenate((min_generated,max_generated),axis=0)
-        fullbool = np.zeros((400,1))
-        fullbool[200:400,0]+=1
-        
-        tf.reset_default_graph()
-        
-        print("INITIATING EXAGGERATED REGRESSOR...")
-        model = do_regression(ex_data,fullbool,regression_epochs)
-        
-        
-        orig_w = model.sess.run(model.W)
-    
-        sortedargs = np.argsort(-np.fabs(orig_w[:,0]))
-        
-        return sortedargs'''
-        return self
-    
-    def generate(self,count):
-        if not self.vae_state == VAE_STATE_SAVED:
-            raise Exception('No VAE trained. Call the "train" function first.')
-        if not self.regressor_state == REGRESSOR_STATE_TRAINED:
-            raise Exception('No Regressors available. Call the "train" function first.')
         dists = self.transformed_data.dot(self.w) + self.b
 
         max_point = self.transformed_data[np.argmax(dists),:]
