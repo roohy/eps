@@ -92,9 +92,9 @@ class VariantionalAutoencoder(object):
 
 
 
-def do_regression(data,labels,epochs,batch_size=300):
+def do_regression(data,labels,epochs,batch_size=300,learning_rate=1e-4):
     tf.reset_default_graph()
-    model = LogisticRegressor(learning_rate=1e-4,input_dim=data.shape[1])
+    model = LogisticRegressor(learning_rate=learning_rate,input_dim=data.shape[1])
     print('TRAINIG LATENT SPACE REGRESSOR:')
     data_handler = BatchMaker()
     data_handler.load_data(data.shape[0])

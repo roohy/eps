@@ -20,7 +20,7 @@ class EPS(object):
         self.regressor_state = REGRESSOR_STATE_EMPTY
         self.ex_data = None
         self.fullbool = None
-        self.model_state = MODEL_LOADED
+        self.model_state = MODEL_NOT_LOADED
     
     def set_layers(self,layers,activation_function=tf.nn.relu):
         self.layers = layers
@@ -54,6 +54,7 @@ class EPS(object):
         saver = tf.train.Saver()
         saver.restore(self.VAE_model.sess,address)
         self.vae_state = VAE_STATE_FITTED
+        self.model_state = MODEL_LOADED
     
     def train_VAE(self,epochs,data):
         if self.VAE_model is None:
@@ -123,11 +124,22 @@ class EPS(object):
         
         return self
     
-    
-    def generate(self,count,regression_epochs=500,regression_index=None):
+    '''def train_classifier(self,regression_epochs=200,regression_index=None):
+        if not self.vae_state == VAE_STATE_SAVED:
+            raise Exception('No VAE trained. Call the "train" function first.')
+        if regression_index is not None:
+            self.transformed_data = self.transform_data(self.data[regression_index])
+        else:
+            self.transformed_data = self.transform_data(self.data)
+        
+        self.temp_labels = self.labels if regression_index is None else self.labels[regression_index]
+        model = do_regression(self.transformed_data,self.temp_labels,regression_epochs)
+        self.regressor_state = REGRESSOR_STATE_TRAINED'''
+    def generate(self,count=200,regression_epochs=500,learning_rate=1e-4,regression_index=None,variance=0.2):
         if not self.vae_state == VAE_STATE_SAVED:
             raise Exception('No VAE trained. Call the "train" function first.')
         self.regression_epochs = regression_epochs
+        self.regressor_learning_rate = learning_rate
         # if not self.regressor_state == REGRESSOR_STATE_TRAINED:
         #     raise Exception('No Regressors available. Call the "train" function first.')
         if regression_index is not None:
@@ -136,7 +148,7 @@ class EPS(object):
             self.transformed_data = self.transform_data(self.data)
         
         self.temp_labels = self.labels if regression_index is None else self.labels[regression_index]
-        model = do_regression(self.transformed_data,self.temp_labels,regression_epochs)
+        model = do_regression(self.transformed_data,self.temp_labels,regression_epochs,learning_rate=self.regressor_learning_rate)
         self.regressor_state = REGRESSOR_STATE_TRAINED
 
         # print('SAVING REGRESSOR')
@@ -150,7 +162,7 @@ class EPS(object):
         min_point = self.transformed_data[np.argmin(dists),:]
         
         cov = np.eye(self.transformed_data.shape[1])
-        cov = cov*0.2
+        cov = cov*variance
 
         max_rand = np.random.multivariate_normal(max_point,cov,count)
 
@@ -178,7 +190,7 @@ class EPS(object):
         if self.ex_data is None:
             raise Exception('No generated data available. Try training a model and generating data first.')
         #print("INITIATING EXAGGERATED REGRESSOR...")
-        model = do_regression(self.ex_data,self.fullbool,self.regression_epochs)
+        model = do_regression(self.ex_data,self.fullbool,self.regression_epochs,learning_rate=self.regressor_learning_rate)
         
         
         orig_w = model.sess.run(model.W)
