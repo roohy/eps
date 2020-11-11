@@ -135,7 +135,7 @@ class EPS(object):
         self.temp_labels = self.labels if regression_index is None else self.labels[regression_index]
         model = do_regression(self.transformed_data,self.temp_labels,regression_epochs)
         self.regressor_state = REGRESSOR_STATE_TRAINED'''
-    def generate(self,count=200,regression_epochs=500,learning_rate=1e-4,regression_index=None,variance=0.2):
+    def generate(self,count=200,regression_epochs=500,learning_rate=1e-4,regression_index=None,variance=0.2,seed_count=1):
         if not self.vae_state == VAE_STATE_SAVED:
             raise Exception('No VAE trained. Call the "train" function first.')
         self.regression_epochs = regression_epochs
@@ -158,16 +158,24 @@ class EPS(object):
         self.b = model.sess.run(model.b)
         dists = self.transformed_data.dot(self.w) + self.b
 
-        max_point = self.transformed_data[np.argmax(dists),:]
-        min_point = self.transformed_data[np.argmin(dists),:]
+        # max_point = self.transformed_data[np.argmax(dists),:]
+        # min_point = self.transformed_data[np.argmin(dists),:]
+        max_points = self.transformed_data[np.argsort(dists)[-seed_count:],:]
+        min_points = self.transformed_data[np.argsort(dists)[:seed_count],:]
+
         
         cov = np.eye(self.transformed_data.shape[1])
         cov = cov*variance
+        max_rand = []
+        min_rand = []
+        for i in range(seed_count):
+            max_rand.append(np.random.multivariate_normal(max_points[i],cov,count))
+            min_rand.append(np.random.multivariate_normal(min_points[i],cov,count))
+        # max_rand = np.random.multivariate_normal(max_point,cov,count)
 
-        max_rand = np.random.multivariate_normal(max_point,cov,count)
-
-        min_rand = np.random.multivariate_normal(min_point,cov,count)
-
+        # min_rand = np.random.multivariate_normal(min_point,cov,count)
+        max_rand = np.concatenate(max_rand,axis=0)
+        min_rand = np.concatenate(min_rand,axis=0)
         tf.reset_default_graph()
         model = VariantionalAutoencoder(self.data.shape[1],self.layers,learning_rate=self.learning_rate,
             batch_size=self.batch_size,activation=self.VAE_activation)
