@@ -143,12 +143,12 @@ class EPS(object):
         # if not self.regressor_state == REGRESSOR_STATE_TRAINED:
         #     raise Exception('No Regressors available. Call the "train" function first.')
         if regression_index is not None:
-            self.transformed_data = self.transform_data(self.data[regression_index])
+            self.op_data = self.transformed_data[regression_index]
         else:
-            self.transformed_data = self.transform_data(self.data)
+            self.op_data = self.transformed_data
         
         self.temp_labels = self.labels if regression_index is None else self.labels[regression_index]
-        model = do_regression(self.transformed_data,self.temp_labels,regression_epochs,learning_rate=self.regressor_learning_rate)
+        model = do_regression(self.op_data,self.temp_labels,regression_epochs,learning_rate=self.regressor_learning_rate)
         self.regressor_state = REGRESSOR_STATE_TRAINED
 
         # print('SAVING REGRESSOR')
@@ -156,21 +156,23 @@ class EPS(object):
         # saver.save(model.sess,model_address+'latent_reg.ckpt')
         self.w = model.sess.run(model.W)
         self.b = model.sess.run(model.b)
-        dists = self.transformed_data.dot(self.w) + self.b
+        dists = self.op_data.dot(self.w) + self.b
 
         # max_point = self.transformed_data[np.argmax(dists),:]
         # min_point = self.transformed_data[np.argmin(dists),:]
-        max_points = self.transformed_data[np.argsort(dists)[-seed_count:],:]
-        min_points = self.transformed_data[np.argsort(dists)[:seed_count],:]
-
+        max_points = self.op_data[np.argsort(dists)[-seed_count:],:]
+        min_points = self.op_data[np.argsort(dists)[:seed_count],:]
+        max_points = np.concatenate(max_points,axis=0)
+        min_points = np.concatenate(min_points,axis=0)
         
-        cov = np.eye(self.transformed_data.shape[1])
+        cov = np.eye(self.op_data.shape[1])
         cov = cov*variance
         max_rand = []
         min_rand = []
+        #print(max_points[0,:].shape,max_points.shape)
         for i in range(seed_count):
-            max_rand.append(np.random.multivariate_normal(max_points[i],cov,count))
-            min_rand.append(np.random.multivariate_normal(min_points[i],cov,count))
+            max_rand.append(np.random.multivariate_normal(max_points[i,:],cov,count))
+            min_rand.append(np.random.multivariate_normal(min_points[i,:],cov,count))
         # max_rand = np.random.multivariate_normal(max_point,cov,count)
 
         # min_rand = np.random.multivariate_normal(min_point,cov,count)
@@ -186,8 +188,8 @@ class EPS(object):
         model.sess.close()
         gc.collect()
         ex_data = np.concatenate((min_generated,max_generated),axis=0)
-        fullbool = np.zeros((count*2,1))
-        fullbool[count:count*2,0]+=1
+        fullbool = np.zeros((count*2*seed_count,1))
+        fullbool[count*seed_count:,0]+=1
         
         tf.reset_default_graph()
         self.ex_data = ex_data
