@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pseudo_sampler",
-    version="0.2.2",
+    version="1.1.1",
     author="Ruhollah Shemirani",
     author_email="shemirani.r@gmail.com",
     description="Extreme Pseudo Sampling Package",
@@ -18,4 +18,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    python_requires='>=3.6',
 )
