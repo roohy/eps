@@ -69,6 +69,7 @@ class EPS(object):
             loss = self.VAE_model.run_single_step(data_batch)
             loss_list.append(loss)
         self.vae_state = VAE_STATE_FITTED
+        return loss_list
     def transform_data(self,data):
         return self.VAE_model.transformer(data)
 
@@ -89,8 +90,8 @@ class EPS(object):
 
     def create_and_train_vae(self,data,activation_func,epochs=50):
         self.create_VAE(self.layers,activation_func)
-        self.train_VAE(epochs,data)
-        return self.VAE_model
+        loss_list = self.train_VAE(epochs,data)
+        return loss_list
 
 
     
@@ -107,7 +108,7 @@ class EPS(object):
             self.labels = self.labels.reshape(self.labels.shape[0],1)
         if self.layers is None:
             if layers is None:
-                raise Exception('No layers were provided anywere.')
+                raise Exception('No layers were provided anywhere.')
             else:
                 self.set_layers([data.shape[1]]+layers)
         
@@ -115,14 +116,14 @@ class EPS(object):
         self.batch_size = batch_size
         self.vae_address = vae_address
         
-        self.create_and_train_vae(data,VAE_activation,vae_epochs)
+        loss_list = self.create_and_train_vae(self.data,VAE_activation,vae_epochs)
         self.save_VAE(vae_address)
         self.vae_state = VAE_STATE_SAVED
         self.transformed_data = self.transform_data(self.data)
         self.VAE_model.sess.close()
         gc.collect()
         
-        return self
+        return loss_list
     
     '''def train_classifier(self,regression_epochs=200,regression_index=None):
         if not self.vae_state == VAE_STATE_SAVED:
