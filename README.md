@@ -27,7 +27,7 @@ Create an EPS instance using the following snippet:
 
 Train the Variational AutoEncoder (VAE):
 
-`train(data,labels,vae_epochs, learning_rate, batch_size,VAE_activation, normalize,vae_address,layers)`
+`train(data, labels, vae_epochs, learning_rate, batch_size, VAE_activation, normalize, vae_address, layers)`
 
 - *data* should be a float numpy array with N\*D dimensions, where N is the total number of samples and D is the number of features in the feature space. Data from multiple case/control datasets can be merged to enhance the training process and prevent NaN errors.
 - *labels* should be a numpy array with length N containing 1s and 0s for cases and controls. When combining multiple datasets, there is no need to have different label numbers for various datasets cases.
@@ -44,14 +44,14 @@ Train the Variational AutoEncoder (VAE):
 
 The `train` function returns the EPS instance object.
 
-After training the VAE, you can generate extreme psuedo-samples by calling the `generate` function:
+After training the VAE, you can generate extreme pseudo-samples by calling the `generate` function:
 
-`eps.generate(count,regression_epochs,learning_rate,regression_index,variance)`
+`eps.generate(count, regression_epochs, learning_rate, regression_index, variance)`
 
 - *count* parameter sets the number of extreme pseudo-samples generated (*default=200*).
 - *regression_epochs* sets the number of epochs for the logistic regression training (*default=500*).
 - *learning_rate* sets the learning rate parameter for the Adam optimizer that fits the logitstic regression model (*default=1e-4*).
-- If you only want to use a subset of the data to train the regressor model, you pass the list of indices as a numpy array  in *regression_index* parameter. This is useful for adopting multiple case/control study data to train a VAE and performing the rest of the feature selection steps separately for each dataset.
+- If you only want to use a subset of the data to train the regressor model, you can pass the list of indices as a numpy array  in *regression_index* parameter. This is useful for adopting multiple case/control study data to train a VAE and performing the rest of the feature selection steps separately for each dataset.
 - The *variance* parameter is used in the process of generating new extreme pseudo-samples around the real extreme samples (*default=0.2*).
 
 The `generate` function returns the extreme pseudo-samples and their labels.
