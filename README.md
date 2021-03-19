@@ -60,8 +60,17 @@ After calling the generate function, the EPS object would also have the feature 
 
 `eps.rank()`
 
+## Examples
+See example Jupyter notebooks `arrythmia_notebook.ipynb` and `sample_notebook.ipynb`, using the [Arrhytmia](http://archive.ics.uci.edu/ml//datasets/Arrhythmia) and [Spambase](http://archive.ics.uci.edu/ml/datasets/Spambase/) example datasets from UCI, respectively.
+
+
 ## Future Work
 In the near future, we plan to add more customization options for models, such as the number of distributions available for generating EPS, separate activation function options for each layer, and a variety of optimizers for each model. 
+
+## Requirements
+- numpy
+- pandas
+- tensorflow
 
 ## Citation
 
