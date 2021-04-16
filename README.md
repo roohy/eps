@@ -66,3 +66,5 @@ In the near future, we plan to add more customization options for models, such a
 ## Citation
 
 **Wenric S and Shemirani R (2018) Using Supervised Learning Methods for Gene Selection in RNA-Seq Case-Control Studies.** *Front. Genet. 9:297.* doi: [10.3389/fgene.2018.00297](https://doi.org/10.3389/fgene.2018.00297)
+
+**Shemirani R, Wenric S, Kenny E, and Ambite JL (2021) EPS: Automated Feature Selection in Case-Control Studies using Extreme Pseudo-Sampling.** *Bioinformatics (Oxford, England), btab214.* doi: [10.1093/bioinformatics/btab214](https://doi.org/10.1093/bioinformatics/btab214)
